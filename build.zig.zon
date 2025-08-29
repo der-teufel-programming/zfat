@@ -4,7 +4,7 @@
     .version = "0.15.0",
     .dependencies = .{
         .fatfs = .{
-            .url = "http://elm-chan.org/fsw/ff/arc/ff15a.zip",
+            .url = "https://elm-chan.org/fsw/ff/arc/ff15a.zip",
             .hash = "N-V-__8AAFQITQCnpmdR7PARImvk-cgb-9lZmjKolexSWkUL",
         },
     },

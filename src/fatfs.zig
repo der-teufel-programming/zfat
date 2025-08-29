@@ -537,14 +537,14 @@ pub const File = struct {
         return written;
     }
 
-    pub const Reader = std.io.Reader(*Self, ReadError.Error, read);
+    pub const Reader = std.io.GenericReader(*Self, ReadError.Error, read);
     pub fn reader(file: *Self) Reader {
-        return Reader{ .context = file };
+        return .{ .context = file };
     }
 
-    pub const Writer = std.io.Writer(*Self, WriteError.Error, write);
+    pub const Writer = std.Io.GenericWriter(*Self, WriteError.Error, write);
     pub fn writer(file: *Self) Writer {
-        return Writer{ .context = file };
+        return .{ .context = file };
     }
 };
 
@@ -701,7 +701,7 @@ const RtcExport = struct {
         const minute = day_secs.getMinutesIntoHour();
         const second = day_secs.getSecondsIntoMinute();
 
-        const dateTime = Encoded{
+        const dateTime: Encoded = .{
             .double_second = @intCast(second / 2),
             .minute = minute,
             .hour = hour,

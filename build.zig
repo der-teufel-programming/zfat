@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
             while (iter.next()) |name| {
                 volumes.append(b.allocator, name) catch @panic("out of memory");
             }
-            config.volumes = .{ .named = volumes.items };
+            config.volumes = .{ .named = volumes.toOwnedSlice(b.allocator) catch @panic("out of memory") };
         }
 
         const maybe_sector_config = b.option([]const u8, "sector-size", "Defines the sector size range. Use `<min>:<max>` or `<fixed>`. Valid items for the range are 512, 1024, 2048 or 4096. No other values allowed.");
@@ -273,10 +273,10 @@ fn add_config_field(config_header: *std.Build.Step.ConfigHeader, config: Config,
     }
 }
 
-fn add_config_option(b: *std.Build, config: *Config, comptime field: @TypeOf(.tag), desc: []const u8) void {
+fn add_config_option(b: *std.Build, config: *Config, comptime field: []const u8, desc: []const u8) void {
     const T = @FieldType(Config, @tagName(field));
-    if (b.option(T, @tagName(field), desc)) |value|
-        @field(config, @tagName(field)) = value;
+    if (b.option(T, field, desc)) |value|
+        @field(config, field) = value;
 }
 
 pub const Config = struct {

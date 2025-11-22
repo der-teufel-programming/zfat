@@ -57,7 +57,7 @@ pub fn main() !void {
 
     try zfat.rename("0:/src", "0:/code");
 
-    std.log.info("stat: {}", .{try zfat.stat("0:/code")});
+    std.log.info("stat: {f}", .{try zfat.stat("0:/code")});
 
     try zfat.chmod("0:/code", .{
         .archive = true,
@@ -69,7 +69,7 @@ pub fn main() !void {
         std.debug.assert(stat.attributes.directory == true);
         std.debug.assert(stat.attributes.archive == true);
         std.debug.assert(stat.attributes.system == true);
-        std.log.info("stat: {}", .{stat});
+        std.log.info("stat: {f}", .{stat});
     }
 
     try zfat.chmod("0:/code", .{
@@ -84,7 +84,7 @@ pub fn main() !void {
         std.debug.assert(stat.attributes.archive == false);
         std.debug.assert(stat.attributes.system == true);
         std.debug.assert(stat.attributes.read_only == true);
-        std.log.info("stat: {}", .{stat});
+        std.log.info("stat: {f}", .{stat});
     }
 
     {
@@ -96,7 +96,7 @@ pub fn main() !void {
         const stat = try zfat.stat("0:/code");
         std.debug.assert(std.meta.eql(stat.date, date));
         std.debug.assert(std.meta.eql(stat.time, time));
-        std.log.info("stat: {}", .{stat});
+        std.log.info("stat: {f}", .{stat});
     }
 
     // getcwd:
@@ -219,14 +219,14 @@ pub fn main() !void {
 
         std.log.info("LIST 0:/code", .{});
         while (try dir.next()) |entry| {
-            std.log.info("- {}", .{entry});
+            std.log.info("- {f}", .{entry});
         }
 
         try dir.rewind();
 
         std.log.info("LIST 0:/code", .{});
         while (try dir.next()) |entry| {
-            std.log.info("- {}", .{entry});
+            std.log.info("- {f}", .{entry});
         }
     }
 

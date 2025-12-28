@@ -68,7 +68,7 @@ pub fn build(b: *std.Build) void {
                 break :time RtcConfig{
                     .static = .{
                         .year = year,
-                        .month = std.meta.intToEnum(std.time.epoch.Month, month) catch break :time null,
+                        .month = std.enums.fromInt(std.time.epoch.Month, month) orelse break :time null,
                         .day = day,
                     },
                 };
@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
             while (iter.next()) |name| {
                 volumes.append(b.allocator, name) catch @panic("out of memory");
             }
-            config.volumes = .{ .named = volumes.toOwnedSlice(b.allocator) catch @panic("out of memory") };
+            config.volumes = .{ .named = volumes.items };
         }
 
         const maybe_sector_config = b.option([]const u8, "sector-size", "Defines the sector size range. Use `<min>:<max>` or `<fixed>`. Valid items for the range are 512, 1024, 2048 or 4096. No other values allowed.");
@@ -109,11 +109,11 @@ pub fn build(b: *std.Build) void {
                 config.sector_size = .{
                     .dynamic = .{
                         .minimum = std.meta.stringToEnum(SectorOption, min) orelse bad_config(
-                            "Invalid value for -Dsector-size: '{f}'",
+                            "Invalid value for -Dsector-size: '{}'",
                             .{std.zig.fmtString(sector_config)},
                         ),
                         .maximum = std.meta.stringToEnum(SectorOption, max) orelse bad_config(
-                            "Invalid value for -Dsector-size: '{f}'",
+                            "Invalid value for -Dsector-size: '{}'",
                             .{std.zig.fmtString(sector_config)},
                         ),
                     },
@@ -121,7 +121,7 @@ pub fn build(b: *std.Build) void {
             } else {
                 config.sector_size = .{
                     .static = std.meta.stringToEnum(SectorOption, sector_config) orelse bad_config(
-                        "Invalid value for -Dsector-size: '{f}'",
+                        "Invalid value for -Dsector-size: '{}'",
                         .{std.zig.fmtString(sector_config)},
                     ),
                 };

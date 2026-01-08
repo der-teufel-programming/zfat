@@ -32,10 +32,10 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("op_tester.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
     op_tester.root_module.addImport("zfat", zfat_mod);
-    op_tester.linkLibC();
 
     b.installArtifact(op_tester);
 }

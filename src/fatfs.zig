@@ -732,7 +732,7 @@ const RtcExport = struct {
     // Current local time shall be returned as bit-fields packed into a DWORD value. The bit fields are as follows:
 
     export fn get_fattime() c.DWORD {
-        const timestamp: std.Io.Timestamp = std.Io.Clock.now(.real, io) catch @panic("");
+        const timestamp: std.Io.Timestamp = std.Io.Clock.now(.real, io);
 
         const epoch_secs = std.time.epoch.EpochSeconds{
             .secs = @intCast(timestamp.toSeconds()),

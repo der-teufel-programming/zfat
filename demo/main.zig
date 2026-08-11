@@ -8,13 +8,14 @@ var global_fs: fatfs.FileSystem = undefined;
 // requires pointer stability
 var image_disk: Disk = undefined;
 
-pub fn main() !u8 {
-    image_disk = Disk{
+pub fn main(init: std.process.Init) !u8 {
+    image_disk = .{
         .sectors = try std.heap.page_allocator.alloc([Disk.sector_size]u8, 100_000), // ~40 MB
     };
     defer std.heap.page_allocator.free(image_disk.sectors);
 
     fatfs.disks[0] = &image_disk.interface;
+    fatfs.std_io = init.io;
 
     var workspace: [4096]u8 = undefined;
     try fatfs.mkfs("0:", .{
@@ -89,27 +90,28 @@ pub const Disk = struct {
         return getStatus(&self.interface);
     }
 
-    pub fn read(interface: *fatfs.Disk, buff: [*]u8, sector: fatfs.LBA, count: c_uint) fatfs.Disk.Error!void {
+    pub fn read(interface: *fatfs.Disk, _: std.Io, buff: [*]u8, sector: fatfs.LBA, count: c_uint) fatfs.Disk.Error!void {
         const self: *Disk = @fieldParentPtr("interface", interface);
 
         std.log.info("read({*}, {}, {})", .{ buff, sector, count });
 
-        var sectors = std.Io.fixedBufferStream(std.mem.sliceAsBytes(self.sectors));
-        sectors.seekTo(sector * sector_size) catch return error.IoError;
-        sectors.reader().readNoEof(buff[0 .. sector_size * count]) catch return error.IoError;
+        var sectors: std.Io.Reader = .fixed(std.mem.sliceAsBytes(self.sectors));
+        sectors.discardAll(sector * sector_size) catch return error.IoError;
+        sectors.readSliceAll(buff[0 .. sector_size * count]) catch return error.IoError;
     }
 
-    pub fn write(interface: *fatfs.Disk, buff: [*]const u8, sector: fatfs.LBA, count: c_uint) fatfs.Disk.Error!void {
+    pub fn write(interface: *fatfs.Disk, _: std.Io, buff: [*]const u8, sector: fatfs.LBA, count: c_uint) fatfs.Disk.Error!void {
         const self: *Disk = @fieldParentPtr("interface", interface);
 
         std.log.info("write({*}, {}, {})", .{ buff, sector, count });
 
-        var sectors = std.Io.fixedBufferStream(std.mem.sliceAsBytes(self.sectors));
-        sectors.seekTo(sector * sector_size) catch return error.IoError;
-        sectors.writer().writeAll(buff[0 .. sector_size * count]) catch return error.IoError;
+        const slice = std.mem.sliceAsBytes(self.sectors);
+        if (sector * sector_size > slice.len) return error.IoError;
+        var sectors: std.Io.Writer = .fixed(slice[sector * sector_size ..]);
+        sectors.writeAll(buff[0 .. sector_size * count]) catch return error.IoError;
     }
 
-    pub fn ioctl(interface: *fatfs.Disk, cmd: fatfs.IoCtl, buff: [*]u8) fatfs.Disk.Error!void {
+    pub fn ioctl(interface: *fatfs.Disk, _: std.Io, cmd: fatfs.IoCtl, buff: [*]u8) fatfs.Disk.Error!void {
         const self: *Disk = @fieldParentPtr("interface", interface);
 
         switch (cmd) {

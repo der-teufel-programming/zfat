@@ -1,14 +1,12 @@
 const std = @import("std");
 const config = @import("config");
-const c = @cImport({
-    @cInclude("ff.h");
-    @cInclude("diskio.h");
-});
+const c = @import("c");
 const logger = std.log.scoped(.fatfs);
 
 pub const volume_count = c.FF_VOLUMES;
 
-pub var disks: [c.FF_VOLUMES]?*Disk = .{null} ** c.FF_VOLUMES;
+pub var disks: [c.FF_VOLUMES]?*Disk = @splat(null);
+pub var std_io: std.Io = undefined;
 
 pub const PathChar = c.TCHAR;
 pub const LBA = c.LBA_t;
@@ -604,9 +602,9 @@ pub const Disk = struct {
 
     getStatusFn: *const fn (self: *Self) Status,
     initializeFn: *const fn (self: *Self) Self.Error!Status,
-    readFn: *const fn (self: *Self, io: std.Io, buff: [*]u8, sector: c.LBA_t, count: c.UINT) Self.Error!void,
-    writeFn: *const fn (self: *Self, io: std.Io, buff: [*]const u8, sector: c.LBA_t, count: c.UINT) Self.Error!void,
-    ioctlFn: *const fn (self: *Self, io: std.Io, cmd: IoCtl, buff: [*]u8) Self.Error!void,
+    readFn: *const fn (self: *Self, std_io: std.Io, buff: [*]u8, sector: c.LBA_t, count: c.UINT) Self.Error!void,
+    writeFn: *const fn (self: *Self, std_io: std.Io, buff: [*]const u8, sector: c.LBA_t, count: c.UINT) Self.Error!void,
+    ioctlFn: *const fn (self: *Self, std_io: std.Io, cmd: IoCtl, buff: [*]u8) Self.Error!void,
 
     pub fn getStatus(self: *Self) Status {
         return self.getStatusFn(self);
@@ -617,15 +615,15 @@ pub const Disk = struct {
     }
 
     pub fn read(self: *Self, buff: [*]u8, sector: c.LBA_t, count: c.UINT) Self.Error!void {
-        return self.readFn(self, io,buff, sector, count);
+        return self.readFn(self, std_io, buff, sector, count);
     }
 
     pub fn write(self: *Self, buff: [*]const u8, sector: c.LBA_t, count: c.UINT) Self.Error!void {
-        return self.writeFn(self, io,buff, sector, count);
+        return self.writeFn(self, std_io, buff, sector, count);
     }
 
     pub fn ioctl(self: *Self, cmd: IoCtl, buff: [*]u8) Self.Error!void {
-        return self.ioctlFn(self, io,cmd, buff);
+        return self.ioctlFn(self, std_io, cmd, buff);
     }
 
     fn mapResult(value: Self.Error!void) c.DRESULT {
@@ -732,7 +730,7 @@ const RtcExport = struct {
     // Current local time shall be returned as bit-fields packed into a DWORD value. The bit fields are as follows:
 
     export fn get_fattime() c.DWORD {
-        const timestamp: std.Io.Timestamp = std.Io.Clock.now(.real, io);
+        const timestamp: std.Io.Timestamp = .now(std_io, .real);
 
         const epoch_secs = std.time.epoch.EpochSeconds{
             .secs = @intCast(timestamp.toSeconds()),
@@ -900,9 +898,9 @@ fn ErrorSet(comptime E: type) type {
                 return;
             } else |err| err;
 
-            inline for (comptime std.meta.fields(E)) |error_option| {
-                if (mapped_error == @field(anyerror, error_option.name))
-                    return @field(anyerror, error_option.name); // must return the comptime known value for inference
+            inline for (@typeInfo(E).error_set.error_names.?) |error_option_name| {
+                if (mapped_error == @field(anyerror, error_option_name))
+                    return @field(anyerror, error_option_name); // must return the comptime known value for inference
             }
 
             std.debug.panic("unexpected error: {s}", .{@errorName(mapped_error)});

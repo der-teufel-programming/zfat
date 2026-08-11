@@ -149,7 +149,7 @@ pub fn build(b: *std.Build) void {
         .named => |strings| {
             var list: std.Io.Writer.Allocating = .init(b.allocator);
             for (strings) |name| {
-                if (list.written().len > 0) {
+                if (list.writer.end > 0) {
                     list.writer.writeAll(", ") catch @panic("out of memory");
                 }
                 list.writer.print("\"{X}\"", .{name}) catch @panic("out of memory");
@@ -178,8 +178,8 @@ pub fn build(b: *std.Build) void {
         },
     }
 
-    inline for (comptime std.meta.fields(Config)) |fld| {
-        add_config_field(config_header, config, fld.name);
+    inline for (@typeInfo(Config).@"struct".field_names) |fld_name| {
+        add_config_field(config_header, config, fld_name);
     }
 
     switch (config.rtc) {
@@ -210,11 +210,24 @@ pub fn build(b: *std.Build) void {
     _ = upstream_copy.addCopyFile(b.path("vendor/fatfs/source/ffsystem.c"), "ffsystem.c");
     const upstream_copy_dir = upstream_copy.getDirectory();
 
+    const translate_c = b.dependency("translate_c", .{});
+    const Translator = @import("translate_c").Translator;
+
+    const t: Translator = .init(translate_c, .{
+        .c_source_file = b.path("src/zfat.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    t.addIncludePath(b.path("vendor/fatfs/source"));
+
     const zfat_mod = b.addModule("zfat", .{
         .root_source_file = b.path("src/fatfs.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = link_libc,
+        .imports = &.{
+            .{ .name = "c", .module = t.mod },
+        },
     });
     zfat_mod.addCSourceFiles(.{
         .root = upstream_copy_dir,
@@ -248,9 +261,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);

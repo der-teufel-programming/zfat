@@ -15,5 +15,6 @@
         "src",
         "test",
         "vendor",
+        "fatfs.h",
     },
 }
